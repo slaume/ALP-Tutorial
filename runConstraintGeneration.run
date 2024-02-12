@@ -1,0 +1,192 @@
+reset;
+include modelFile.mod;
+#data smallExample.dat;
+data largeExample.dat;
+
+#settings
+#--------------------------------
+let T := 50;
+let nrOfSim := 50;
+let deltaTol := 0.01;
+let {i in 1..I} xStart[i] := 0;
+let METHODS := {'acceptAll','AF'};
+#--------------------------------
+
+if 'Exact' in METHODS then {
+	include solveExact.run;
+}
+
+if 'AF' in METHODSLP then {
+	let GENCONS['AF'] := {};
+	let epsilonErr := Infinity;
+	let {i in 1..I} VAFsim[i] := 0;
+	let thetaAFsim := 0; 
+	let conindex := 0;
+	repeat while epsilonErr > deltaTol {
+		let conindex := conindex + 1;
+		let GENCONS['AF'] := GENCONS['AF'] union {conindex};
+		let oldMax1 := - Infinity;
+		for {A in 0..Amax} {
+			for {i in 1..I} {
+				let oldMax2 := -Infinity;
+				for {x in 0..xmax} {
+					let newMax2 := -VAFsim[i]*x-beta*x
+						+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*(if x < xmax then 1 else 0)
+						+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+							q[i]*VAFsim[i]*max(0,x-1+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))
+							+(1-q[i])*VAFsim[i]*(x+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))
+						)
+						+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+							q[i]*VAFsim[i]*max(0,x-1) + (1-q[i])*VAFsim[i]*x
+						);
+					if newMax2 > oldMax2 then {
+						let currXmax[i] := x;
+						let oldMax2 := newMax2;
+					}
+				}
+			}
+			let newMax1 := sum{i in 1..I} (-(VAFsim[i]+beta)*currXmax[i]
+				+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*
+					(if currXmax[i] < xmax then 1 else 0)
+				+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+					q[i]*VAFsim[i]*
+						max(0,currXmax[i]-1+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))
+					+(1-q[i])*VAFsim[i]*(currXmax[i]+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))
+				)
+				+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+					q[i]*VAFsim[i]*max(0,currXmax[i]-1) + (1-q[i])*VAFsim[i]*currXmax[i]
+				)
+			)
+			- (1-alpha)*thetaAFsim;
+			if newMax1 > oldMax1 then {
+				let {i in 1..I} xhatGen['AF',conindex,i] := currXmax[i];
+				let {l in 1..L} ahatGen['AF',conindex,l] := floor((A mod 2^l)/(2^(l-1)));
+				let oldMax1 := newMax1;
+			}
+		}
+		let epsilonErr := oldMax1;
+		solve AFgen;
+		let {i in 1..I} VAFsim[i] := VAF[i];
+		let thetaAFsim := thetaAF;
+	}
+}
+
+if 'AFc' in METHODSLP then {
+	let GENCONS['AFc'] := {};
+	let epsilonErr := Infinity;
+	let VAFcsim := 0;
+	let thetaAFcsim := 0; 
+	let conindex := 0;
+	repeat while epsilonErr > deltaTol {
+		let conindex := conindex + 1;
+		let GENCONS['AFc'] := GENCONS['AFc'] union {conindex};
+		let oldMax1 := - Infinity;
+		for {A in 0..Amax} {
+			for {i in 1..I} {
+				let oldMax2 := -Infinity;
+				for {x in 0..xmax} {
+					let newMax2 := -VAFcsim*x-beta*x
+						+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*(if x < xmax then 1 else 0)
+						+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+							q[i]*VAFcsim*max(0,x-1+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))
+							+(1-q[i])*VAFcsim*(x+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))
+						)
+						+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+							q[i]*VAFcsim*max(0,x-1) + (1-q[i])*VAFcsim*x
+						);
+					if newMax2 > oldMax2 then {
+						let currXmax[i] := x;
+						let oldMax2 := newMax2;
+					}
+				}
+			}
+			let newMax1 := sum{i in 1..I} (-(VAFcsim+beta)*currXmax[i]
+				+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*
+					(if currXmax[i] < xmax then 1 else 0)
+				+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+					q[i]*VAFcsim*
+						max(0,currXmax[i]-1+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))
+					+(1-q[i])*VAFcsim*(currXmax[i]+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))
+				)
+				+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+					q[i]*VAFcsim*max(0,currXmax[i]-1) + (1-q[i])*VAFcsim*currXmax[i]
+				)
+			)
+			- (1-alpha)*thetaAFcsim;
+			if newMax1 > oldMax1 then {
+				let {i in 1..I} xhatGen['AFc',conindex,i] := currXmax[i];
+				let {l in 1..L} ahatGen['AFc',conindex,l] := floor((A mod 2^l)/(2^(l-1)));
+				let oldMax1 := newMax1;
+			}
+		}
+		let epsilonErr := oldMax1;
+		solve AFcgen;
+		let VAFcsim := VAFc;
+		let thetaAFcsim := thetaAFc;
+	}
+}
+
+if 'SPL' in METHODSLP then {
+	let GENCONS['SPL'] := {};
+	let epsilonErr := Infinity;
+	let {i in 1..I, x in 0..xmax} vSPLsim[i,x] := 0; 
+	let conindex := 0;
+	repeat while epsilonErr > deltaTol {
+		let conindex := conindex + 1;
+		let GENCONS['SPL'] := GENCONS['SPL'] union {conindex};
+		let oldMax1 := - Infinity;
+		for {A in 0..Amax} {
+			for {i in 1..I} {
+				let oldMax2 := -Infinity;
+				for {x in 0..xmax} {
+					let newMax2 := -vSPLsim[i,x]-beta*x
+						+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*(if x < xmax then 1 else 0)
+						+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+							q[i]*vSPLsim[i,max(0,x-1+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))]
+							+(1-q[i])*vSPLsim[i,(x+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))]
+						)
+						+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+							q[i]*vSPLsim[i,max(0,x-1)] + (1-q[i])*vSPLsim[i,x]
+						);
+					if newMax2 > oldMax2 then {
+						let currXmax[i] := x;
+						let oldMax2 := newMax2;
+					}
+				}
+			}
+			let newMax1 := sum{i in 1..I} (-vSPLsim[i,currXmax[i]]-beta*currXmax[i]
+				+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*
+					(if currXmax[i] < xmax then 1 else 0)
+				+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+					q[i]*vSPLsim[i,
+						max(0,currXmax[i]-1+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))]
+					+(1-q[i])*vSPLsim[i,(currXmax[i]+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))]
+				)
+				+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+					q[i]*vSPLsim[i,max(0,currXmax[i]-1)] + (1-q[i])*vSPLsim[i,currXmax[i]]
+				)
+			);
+			if newMax1 > oldMax1 then {
+				let {i in 1..I} xhatGen['SPL',conindex,i] := currXmax[i];
+				let {l in 1..L} ahatGen['SPL',conindex,l] := floor((A mod 2^l)/(2^(l-1)));
+				let oldMax1 := newMax1;
+			}
+		}
+		let epsilonErr := oldMax1;
+		solve SPLgen;
+		let {i in 1..I, x in 0..xmax} vSPLsim[i,x] := vSPL[i,x];
+	}
+}
+
+if 'Exact' in METHODS then {
+	include simulationWithExact.run;
+} else {
+	include simulationWithoutExact.run;
+}
+
+if 'AFc' in METHODS then display thetaAFcsim+sum{i in 1..I}VAFcsim*xStart[i];
+if 'AF' in METHODS then display thetaAFsim+sum{i in 1..I}VAFsim[i]*xStart[i];
+if 'SPL' in METHODS then display sum{i in 1..I}vSPLsim[i,xStart[i]];
+if 'Exact' in METHODS then display vExact[XStart];
+display averageReward;
+display confidence;

@@ -1,0 +1,73 @@
+#simulation
+for {s in 1..nrOfSim} {
+	display s;
+	let {VFA in METHODS, i in 1..I} xSim[VFA,i] := xStart[i];
+	let {VFA in METHODS} reward[VFA,s] := 0;
+	for {t in 0..T} {
+		let {VFA in METHODS} reward[VFA,s] 
+			:= reward[VFA,s]-alpha^t*beta*sum{i in 1..I}xSim[VFA,i];
+		let {VFA in METHODS, A in 0..Amax} decision[VFA,A] := 
+			-beta*sum{i in 1..I}xSim[VFA,i]
+			+sum{l in 1..L, i in 1..I}lambda[l]*p[i]*(
+				floor((A mod 2^l)/(2^(l-1)))*r[l]*(if xSim[VFA,i] < xmax then 1 else 0)
+				+alpha*sum{K in 0..Kmax}(
+					prod{ii in 1..I}(q[ii]^(floor((K mod 2^ii)/(2^(ii-1))))*(1-q[ii])^(1-floor((K mod 2^ii)/(2^(ii-1)))))
+				)*(
+					if VFA = 'SPL' then
+						sum{ii in 1..I}vSPLsim[ii,max(0,xSim[VFA,ii]
+							-floor((K mod 2^ii)/(2^(ii-1)))
+							+floor((A mod 2^l)/(2^(l-1)))*(if ii=i and xSim[VFA,ii]<xmax then 1 else 0))]
+					else if VFA = 'AF' then
+						sum{ii in 1..I}VAFsim[ii]*max(0,xSim[VFA,ii]
+							-floor((K mod 2^ii)/(2^(ii-1)))
+							+floor((A mod 2^l)/(2^(l-1)))*(if ii=i and xSim[VFA,ii]<xmax then 1 else 0))
+					else if VFA = 'AFc' then 
+						sum{ii in 1..I}VAFcsim*max(0,xSim[VFA,ii]
+							-floor((K mod 2^ii)/(2^(ii-1)))
+							+floor((A mod 2^l)/(2^(l-1)))*(if ii=i and xSim[VFA,ii]<xmax then 1 else 0))
+					else if VFA = 'Exact' then
+						vExact[sum{ii in 1..I}(
+							max(0,xSim[VFA,ii]
+							-floor((K mod 2^ii)/(2^(ii-1)))
+							+floor((A mod 2^l)/(2^(l-1)))*(if ii=i and xSim[VFA,ii]<xmax then 1 else 0))
+						)*(xmax+1)^(ii-1)]
+				)
+			);
+		for {VFA in METHODS} {
+			let auxMax := -Infinity;
+			let Astar[VFA] := -1;
+			for {A in 0..Amax} {
+				if decision[VFA,A] > auxMax then {
+					let Astar[VFA] := A;
+					let auxMax := decision[VFA,A];
+				}
+			}
+		}
+		if 'acceptAll' in METHODS then let Astar['acceptAll'] := Amax;
+		let dice := Uniform(0,1);
+		for {l in 1..L} {
+			if sum{ll in 1..l-1}lambda[ll] <= dice <= sum{ll in 1..l}lambda[ll] then let lstar := l;
+		}
+		let {VFA in METHODS} 
+			alstar[VFA] := floor((Astar[VFA] mod 2^lstar)/(2^(lstar-1)));
+		let dice := Uniform(0,1);
+		for {i in 1..I} {
+			if sum{ii in 1..i-1}p[ii] <= dice <= sum{ii in 1..i}p[ii] then let istar := i;
+		}
+		for {VFA in METHODS} {
+			if xSim[VFA,istar] = xmax then let alstar[VFA] := 0;
+			let xSim[VFA,istar] := xSim[VFA,istar]+alstar[VFA];
+			for {i in 1..I} {
+				let dice := Uniform(0,1);
+				if dice <= q[i] then {
+					let xSim[VFA,i] := max(0,xSim[VFA,i]-1);
+				}
+			}
+			let reward[VFA,s] := reward[VFA,s]+alpha^t*alstar[VFA]*r[lstar];
+		}
+	}
+}
+let {VFA in METHODS} averageReward[VFA] 
+	:= 1/nrOfSim*sum{s in 1..nrOfSim}reward[VFA,s];
+let {VFA in METHODS} confidence[VFA] 
+	:= sqrt(1/nrOfSim*sum{s in 1..nrOfSim} (reward[VFA,s]-averageReward[VFA])^2/(nrOfSim-1));

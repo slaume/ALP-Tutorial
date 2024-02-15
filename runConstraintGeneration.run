@@ -1,0 +1,72 @@
+reset;
+include modelFile.mod;
+data parameters.dat;
+
+#settings
+#--------------------------------
+let T := 50;
+let nrOfSim := 1000;
+let deltaTol := 0.01;
+let {i in 1..I} xStart[i] := 0;
+#--------------------------------
+
+let GENCONS['AF'] := {};
+let epsilonErr := Infinity;
+let {i in 1..I} VAFsim[i] := 0;
+let thetaAFsim := 0; 
+let conindex := 0;
+repeat while epsilonErr > deltaTol {
+	let conindex := conindex + 1;
+	let GENCONS['AF'] := GENCONS['AF'] union {conindex};
+	let oldMax1 := - Infinity;
+	for {A in 0..Amax} {
+		for {i in 1..I} {
+			let oldMax2 := -Infinity;
+			for {x in 0..xmax} {
+				let newMax2 := -VAFsim[i]*x-beta*x
+					+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*(if x < xmax then 1 else 0)
+					+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+						q[i]*VAFsim[i]*max(0,x-1+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))
+						+(1-q[i])*VAFsim[i]*(x+floor((A mod 2^l)/(2^(l-1)))*(if x < xmax then 1 else 0))
+					)
+					+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+						q[i]*VAFsim[i]*max(0,x-1) + (1-q[i])*VAFsim[i]*x
+					);
+				if newMax2 > oldMax2 then {
+					let currXmax[i] := x;
+					let oldMax2 := newMax2;
+				}
+			}
+		}
+		let newMax1 := sum{i in 1..I} (-(VAFsim[i]+beta)*currXmax[i]
+			+p[i]*sum{l in 1..L}lambda[l]*floor((A mod 2^l)/(2^(l-1)))*r[l]*
+				(if currXmax[i] < xmax then 1 else 0)
+			+alpha*p[i]*sum{l in 1..L}lambda[l]*(
+				q[i]*VAFsim[i]*
+					max(0,currXmax[i]-1+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))
+				+(1-q[i])*VAFsim[i]*(currXmax[i]+floor((A mod 2^l)/(2^(l-1)))*(if currXmax[i] < xmax then 1 else 0))
+			)
+			+alpha*(1-p[i])*sum{l in 1..L}lambda[l]*(
+				q[i]*VAFsim[i]*max(0,currXmax[i]-1) + (1-q[i])*VAFsim[i]*currXmax[i]
+			)
+		)
+		- (1-alpha)*thetaAFsim;
+		if newMax1 > oldMax1 then {
+			let {i in 1..I} xhatGen['AF',conindex,i] := currXmax[i];
+			let {l in 1..L} ahatGen['AF',conindex,l] := floor((A mod 2^l)/(2^(l-1)));
+			let oldMax1 := newMax1;
+		}
+	}
+	let epsilonErr := oldMax1;
+	solve AFgen;
+	let {i in 1..I} VAFsim[i] := VAF[i];
+	let thetaAFsim := thetaAF;
+}
+
+include simulation.run;
+
+display GENCONS;
+display thetaAFsim;
+display VAFsim;
+display averageReward;
+display confidence;

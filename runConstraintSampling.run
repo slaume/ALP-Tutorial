@@ -1,0 +1,100 @@
+reset;
+include modelFile.mod;
+data parameters.dat;
+
+#settings
+#--------------------------------
+let T := 50; 
+let nrOfSim := 1000; 
+let nrOfIt := 10; 
+let sampleSize := 5; 
+let Tsample := 7; 
+let {i in 1..I} xStart[i] := 0;
+#--------------------------------
+
+let thetaAFsim := 0;
+let {i in 1..I}VAFsim[i] := 0;
+let {VFA in METHODSLP} SAMCONS[VFA] := {};
+let conindex := 0;
+for {it in 1..nrOfIt} {
+	for {s in 1..sampleSize} {
+		display s;
+		let {i in 1..I} xRand[i] := max(0,ceil(Uniform(-1,xmax)));
+		let {VFA in METHODSLP, i in 1..I} xSim[VFA,i] := xRand[i];
+		for {t in 0..Tsample} {
+			let {VFA in METHODSLP, A in 0..Amax} decision[VFA,A] := 
+				-beta*sum{i in 1..I}xSim[VFA,i]
+				+sum{l in 1..L, i in 1..I}lambda[l]*p[i]*(
+					floor((A mod 2^l)/(2^(l-1)))*r[l]*(if xSim[VFA,i] < xmax then 1 else 0)
+					+alpha*
+					sum{ii in 1..I, k in 0..1}(
+						q[ii]^k*(1-q[ii])^(1-k)*
+						(
+							VAFsim[ii]*max(0,xSim[VFA,ii]-k
+							+floor((A mod 2^l)/(2^(l-1)))*(if ii=i and xSim[VFA,ii]<xmax then 1 else 0))
+						)
+					)
+				);
+			for {VFA in METHODSLP} {
+				let auxMax := -Infinity;
+				let Astar[VFA] := -1;
+				for {A in 0..Amax} {
+					if decision[VFA,A] > auxMax then {
+						let Astar[VFA] := A;
+						let auxMax := decision[VFA,A];
+					}
+				}
+				let found := 0;
+				if 1=1 then {
+					for {cc in SAMCONS[VFA]} {
+						let isequal := 1;
+						for {i in 1..I} {
+							if xhatSample[VFA,cc,i] != xSim[VFA,i] then let isequal := 0;
+						}
+						for {l in 1..L} {
+							if ahatSample[VFA,cc,l] != floor((Astar[VFA] mod 2^l)/(2^(l-1))) then let isequal := 0;
+						}
+						if isequal = 1 then let found := 1;
+					}
+				}
+				if found = 0 then {
+					let conindex := conindex + 1;
+					let SAMCONS[VFA] := SAMCONS[VFA] union {conindex};
+					let {i in 1..I} xhatSample[VFA,conindex,i] := xSim[VFA,i];
+					let {l in 1..L} ahatSample[VFA,conindex,l] := floor((Astar[VFA] mod 2^l)/(2^(l-1)));
+				}
+			}
+			let dice := Uniform(0,1);
+			for {l in 1..L} {
+				if sum{ll in 1..l-1}lambda[ll] <= dice <= sum{ll in 1..l}lambda[ll] then let lstar := l;
+			}
+			let {VFA in METHODSLP} 
+				alstar[VFA] := floor((Astar[VFA] mod 2^lstar)/(2^(lstar-1)));
+			let dice := Uniform(0,1);
+			for {i in 1..I} {
+				if sum{ii in 1..i-1}p[ii] <= dice <= sum{ii in 1..i}p[ii] then let istar := i;
+			}
+			for {VFA in METHODSLP} {
+				if xSim[VFA,istar] = xmax then let alstar[VFA] := 0;
+				let xSim[VFA,istar] := xSim[VFA,istar]+alstar[VFA];
+			}
+			for {i in 1..I} {
+				let dice := Uniform(0,1);
+				if dice <= q[i] then {
+					let {VFA in METHODSLP} xSim[VFA,i] := max(0,xSim[VFA,i]-1);
+				}
+			}
+		}
+	}
+	solve AFsample;
+	let thetaAFsim := thetaAF;
+	let {i in 1..I}VAFsim[i] := VAF[i];
+}
+
+include simulation.run;
+
+display SAMCONS;
+display thetaAFsim;
+display VAFsim;
+display averageReward;
+display confidence;

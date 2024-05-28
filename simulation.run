@@ -3,7 +3,7 @@ for {s in 1..nrOfSim} {
 	if s mod 10 = 0 then display s;
 	let {VFA in METHODS, i in 1..I} xSim[VFA,i] := xStart[i];
 	let {VFA in METHODS} reward[VFA,s] := 0;
-	for {t in 0..T} {
+	for {t in 0..T-1} {
 		let {VFA in METHODS} reward[VFA,s] 
 			:= reward[VFA,s]-alpha^t*beta*sum{i in 1..I}xSim[VFA,i];
 		let {VFA in METHODS, A in 0..Amax} decision[VFA,A] := 

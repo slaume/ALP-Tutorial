@@ -4,9 +4,9 @@ data parameters.dat;
 
 #settings
 #--------------------------------
-let T := 50;
-let nrOfSim := 1000;
-let deltaTol := 0.01;
+let T := 200;
+let nrOfSim := 100;
+let deltaTol := 2;
 let {i in 1..I} xStart[i] := 0;
 #--------------------------------
 

@@ -4,11 +4,11 @@ data parameters.dat;
 
 #settings
 #--------------------------------
-let T := 50; 
+let T := 200; 
 let nrOfSim := 1000; 
 let nrOfIt := 10; 
 let sampleSize := 5; 
-let Tsample := 7; 
+let Tsample := 8; 
 let {i in 1..I} xStart[i] := 0;
 #--------------------------------
 
@@ -21,7 +21,7 @@ for {it in 1..nrOfIt} {
 		display s;
 		let {i in 1..I} xRand[i] := max(0,ceil(Uniform(-1,xmax)));
 		let {VFA in METHODSLP, i in 1..I} xSim[VFA,i] := xRand[i];
-		for {t in 0..Tsample} {
+		for {t in 0..Tsample-1} {
 			let {VFA in METHODSLP, A in 0..Amax} decision[VFA,A] := 
 				-beta*sum{i in 1..I}xSim[VFA,i]
 				+sum{l in 1..L, i in 1..I}lambda[l]*p[i]*(

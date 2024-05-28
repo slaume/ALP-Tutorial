@@ -4,7 +4,7 @@ data parameters.dat;
 
 #settings
 #--------------------------------
-let T := 50;
+let T := 200;
 let nrOfSim := 1000;
 let {i in 1..I} xStart[i] := 0;
 #--------------------------------

@@ -1,0 +1,35 @@
+reset;
+include modelFile.mod;
+data parametersB.dat;
+
+#settings
+#--------------------------------
+let T := 200;
+let nrOfSim := 5000;
+#let METHODS := {'AF','SPL','acceptAll'};
+let METHODS := {'AF','acceptAll'};
+#--------------------------------
+
+if 'AF' in METHODS then {
+	solve AFred;
+	let {i in 1..I} VAFsim[i] := VAF[i];
+	let thetaAFsim := thetaAF;
+}
+if 'SPL' in METHODS then {
+	solve SPLred;
+	let {i in 1..I, x in 0..xmax} vSPLsim[i,x] := vSPL[i,x];
+}
+
+include simulation.run;
+
+if 'AF' in METHODS then {
+	display thetaAFsim;
+	display VAFsim;
+	display ZAF;
+}
+if 'SPL' in METHODS then {
+	display ZSPL;
+}
+display xAverage;
+display averageReward;
+display confidence;

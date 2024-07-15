@@ -1,0 +1,72 @@
+reset;
+include modelFile.mod;
+data parametersA.dat;
+
+#settings
+#--------------------------------
+#ONLY IF I=2
+let T := 200;
+let nrOfSim := 100;
+#--------------------------------
+
+let METHODS := {'exact','AF','SPL','acceptAll'};
+
+#compute exact value function with value iteration
+let {X in 0..Xmax} vExact[X] := 0;
+for {t in T..0 by -1} {
+	display t;
+	for {X in 0..Xmax} {
+		let vUpdate[X] := max{A in 0..Amax} (
+			-beta*sum{i in 1..I}floor((X mod (xmax+1)^i)/((xmax+1)^(i-1)))
+			+sum{l in 0..L, i1 in 1..I, i2 in 1..I}lambda[l]*p[i1]*q[i2]*(
+				(if l=0 then 0 else floor((A mod 2^l)/(2^(l-1))))*r[l]*(if floor((X mod (xmax+1)^i1)/((xmax+1)^(i1-1))) < xmax then 1 else 0)
+				+alpha*vExact[sum{ii in 1..I}(
+					max(0,floor((X mod (xmax+1)^ii)/((xmax+1)^(ii-1)))
+						+(if l=0 then 0 else floor((A mod 2^l)/(2^(l-1))))*(if ii=i1 and floor((X mod (xmax+1)^ii)/((xmax+1)^(ii-1)))<xmax then 1 else 0)
+						-(if ii=i2 then 1 else 0))
+				)*(xmax+1)^(ii-1)]
+			)
+		);
+	}
+	let {X in 0..Xmax} vExact[X] := vUpdate[X];
+}
+
+#print exact value function
+printf "%s\n\n" , 'exact value function' > ./000valuefunction.txt;
+for {X in 0..Xmax} printf "%s%d%s%d%s%f%s\n" , '<|"x1"->' , 
+	floor(X mod (xmax+1)) , ',"x2"->' , 
+	floor((X mod (xmax+1)^2)/(xmax+1)) , ',"y"->' ,
+	vExact[X] , '|>,' > ./000valuefunction.txt;
+printf "\n\n" > ./000valuefunction.txt;
+	
+solve AFred;
+let {i in 1..I} VAFsim[i] := VAF[i];
+let thetaAFsim := thetaAF;
+
+#print AF value function
+printf "%s\n\n" , 'AF value function' > ./000valuefunction.txt;
+for {x1 in 0..xmax, x2 in 0..xmax} printf "%s%d%s%d%s%f%s\n" , '<|"x1"->' , 
+	x1 , ',"x2"->' , 
+	x2 , ',"y"->' ,
+	thetaAFsim+VAFsim[1]*x1+VAFsim[2]*x2 , '|>,' > ./000valuefunction.txt;
+printf "\n\n" > ./000valuefunction.txt;
+
+solve SPLred;
+let {i in 1..I, x in 0..xmax} vSPLsim[i,x] := vSPL[i,x];
+
+#print SPL value function
+printf "%s\n\n" , 'SPL value function' > ./000valuefunction.txt;
+for {x1 in 0..xmax, x2 in 0..xmax} printf "%s%d%s%d%s%f%s\n" , '<|"x1"->' , 
+	x1 , ',"x2"->' , 
+	x2 , ',"y"->' ,
+	vSPLsim[1,x1]+vSPLsim[2,x2] , '|>,' > ./000valuefunction.txt;
+printf "\n\n" > ./000valuefunction.txt;
+	
+include simulation.run;	
+
+display averageReward;
+display confidence;
+display sum{X in 0..Xmax}1/(Xmax+1)*vExact[X];
+display ZSPL;
+display ZAF;
+display xAverage;

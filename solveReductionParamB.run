@@ -1,0 +1,28 @@
+reset;
+include modelFile.mod;
+data parametersB.dat;
+
+#settings
+#--------------------------------
+let T := 200;
+let nrOfSim := 50;
+let METHODS := {'AF','acceptAll'};
+#--------------------------------
+
+if 'AF' in METHODS then {
+	solve AFred;
+	let {i in 1..I} VAFsim[i] := VAF[i];
+	let thetaAFsim := thetaAF;
+}
+
+include simulation.run;
+
+if 'AF' in METHODS then {
+	display thetaAFsim;
+	display VAFsim;
+	display ZAF;
+}
+
+display xAverage;
+display averageReward;
+display confidence;

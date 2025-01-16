@@ -5,7 +5,7 @@ data parametersB.dat;
 #settings
 #--------------------------------
 let T := 200;
-let nrOfSim := 50;
+let nrOfSim := 5000;
 let METHODS := {'AF','acceptAll'};
 #--------------------------------
 
